@@ -1,0 +1,8 @@
+<svg width="1200" height="800" viewBox="0 0 1200 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="800" fill="#F3EFE7"/>
+  <rect x="72" y="72" width="1056" height="656" rx="40" fill="#E7DED0"/>
+  <path d="M176 568L362 378C383 356 419 356 440 378L538 476C559 498 595 498 616 476L786 306C807 284 843 284 864 306L1024 466V632H176V568Z" fill="#C9B6A1"/>
+  <circle cx="365" cy="244" r="62" fill="#D9C8B4"/>
+  <path d="M176 632H1024" stroke="#B39677" stroke-width="24" stroke-linecap="round"/>
+  <text x="600" y="692" text-anchor="middle" fill="#7B6248" font-family="Arial, sans-serif" font-size="42">Image unavailable</text>
+</svg>

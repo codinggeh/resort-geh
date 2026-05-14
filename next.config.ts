@@ -23,9 +23,13 @@ function collectAllowedDevOrigins() {
 const nextConfig: NextConfig = {
   allowedDevOrigins: collectAllowedDevOrigins(),
   serverExternalPackages: ["better-sqlite3"],
-  outputFileTracingIncludes: {
-    "/**": ["./sqlite.db"],
-  },
+  ...(process.env.DATABASE_URL
+    ? {}
+    : {
+        outputFileTracingIncludes: {
+          "/**": ["./sqlite.db"],
+        },
+      }),
   images: {
     remotePatterns: [
       {

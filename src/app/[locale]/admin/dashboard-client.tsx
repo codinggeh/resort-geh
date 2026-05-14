@@ -137,52 +137,42 @@ export function DashboardClient({ analytics }: DashboardClientProps) {
 
       {/* Revenue Chart */}
       <Card>
-        <CardHeader className="gap-4 md:flex-row md:items-start md:justify-between">
+        <CardHeader className="flex-row items-center justify-between gap-4 flex-wrap">
           <div className="space-y-1">
             <CardTitle>{t("revenueChart")}</CardTitle>
             <p className="text-sm text-muted-foreground">{periodLabel}</p>
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:w-auto">
-            <div className="space-y-1">
-              <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                {t("month")}
-              </p>
-              <Select
-                value={String(analytics.selectedMonth)}
-                onValueChange={(value) => updateFilters({ month: value })}
-              >
-                <SelectTrigger className="min-w-40 bg-background">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent align="end">
-                  {monthOptions.map((month) => (
-                    <SelectItem key={month.value} value={month.value}>
-                      {month.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                {t("year")}
-              </p>
-              <Select
-                value={String(analytics.selectedYear)}
-                onValueChange={(value) => updateFilters({ year: value })}
-              >
-                <SelectTrigger className="min-w-32 bg-background">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent align="end">
-                  {analytics.availableYears.map((year) => (
-                    <SelectItem key={year} value={String(year)}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="flex items-center gap-3">
+            <Select
+              value={String(analytics.selectedMonth)}
+              onValueChange={(value) => updateFilters({ month: value })}
+            >
+              <SelectTrigger className="min-w-32 bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="end">
+                {monthOptions.map((month) => (
+                  <SelectItem key={month.value} value={month.value}>
+                    {month.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={String(analytics.selectedYear)}
+              onValueChange={(value) => updateFilters({ year: value })}
+            >
+              <SelectTrigger className="min-w-28 bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="end">
+                {analytics.availableYears.map((year) => (
+                  <SelectItem key={year} value={String(year)}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardHeader>
         <CardContent>

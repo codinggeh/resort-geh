@@ -10,27 +10,38 @@ import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { mapAuthProviderError, mapAuthValidationMessage } from "@/lib/auth-form";
 import { getSafeNextPath } from "@/lib/safe-next-path";
+import { isPublicDemoModeEnabled } from "@/lib/demo-mode";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DemoCredentials } from "@/components/demo-credentials";
 import { Hotel, Loader2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 
 export default function LoginPage() {
   const t = useTranslations("auth");
+  const td = useTranslations("demo");
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const nextPath = getSafeNextPath(searchParams.get("next"));
+  const demoEnabled = isPublicDemoModeEnabled();
 
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
   });
+
+  function useDemoAccount(values: { email: string; password: string }) {
+    setValue("email", values.email, { shouldDirty: true, shouldValidate: true });
+    setValue("password", values.password, { shouldDirty: true, shouldValidate: true });
+    toast.success(td("copied"));
+  }
 
   async function onSubmit(data: LoginFormData) {
     setLoading(true);
@@ -41,7 +52,7 @@ export default function LoginPage() {
       });
 
       if (result.error) {
-        toast.error(mapAuthProviderError(result.error.message, t) || t("loginFailed"));
+        toast.error(mapAuthProviderError(result.error, t) || t("loginFailed"));
       } else {
         toast.success(t("loginSuccess"));
         router.push(nextPath);
@@ -151,6 +162,11 @@ export default function LoginPage() {
                   {t("login")}
                 </Button>
               </form>
+              {demoEnabled && (
+                <div className="mt-6">
+                  <DemoCredentials onUseAccount={useDemoAccount} />
+                </div>
+              )}
               <p className="mt-5 text-center text-sm text-muted-foreground">
                 {t("noAccount")} {" "}
                 <Link href={`/register?next=${encodeURIComponent(nextPath)}`} className="font-medium text-primary hover:underline">

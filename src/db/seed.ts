@@ -1,8 +1,12 @@
 import { db } from "./index";
-import { accounts, bookings, payments, reviews, users, villas } from "./schema";
 import { v4 as uuid } from "uuid";
 import { sql } from "drizzle-orm";
 import { hashPassword } from "better-auth/crypto";
+
+const isPostgres = !!process.env.DATABASE_URL;
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const schema = isPostgres ? require("./schema.pg") : require("./schema");
+const { accounts, bookings, payments, reviews, users, villas } = schema;
 
 function dateOffset(days: number) {
   const date = new Date();
@@ -33,13 +37,13 @@ async function seed() {
   const passwordHash = await hashPassword("password123");
   console.log("🌱 Seeding database with realistic demo data...");
 
-  db.run(sql`DELETE FROM reviews`);
-  db.run(sql`DELETE FROM payments`);
-  db.run(sql`DELETE FROM bookings`);
-  db.run(sql`DELETE FROM accounts`);
-  db.run(sql`DELETE FROM sessions`);
-  db.run(sql`DELETE FROM villas`);
-  db.run(sql`DELETE FROM users`);
+  await db.execute(sql`DELETE FROM reviews`);
+  await db.execute(sql`DELETE FROM payments`);
+  await db.execute(sql`DELETE FROM bookings`);
+  await db.execute(sql`DELETE FROM accounts`);
+  await db.execute(sql`DELETE FROM sessions`);
+  await db.execute(sql`DELETE FROM villas`);
+  await db.execute(sql`DELETE FROM users`);
 
   const userSeeds = [
     {
@@ -114,35 +118,31 @@ async function seed() {
     },
   ];
 
-  db.insert(users)
-    .values(
-      userSeeds.map((user) => ({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        passwordHash,
-        role: user.role,
-        avatarUrl: user.avatarUrl,
-        createdAt: dateOffset(user.createdOffset),
-        emailVerified: true,
-        updatedAt: dateOffset(user.createdOffset),
-      }))
-    )
-    .run();
+  await db.insert(users).values(
+    userSeeds.map((user) => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      passwordHash,
+      role: user.role,
+      avatarUrl: user.avatarUrl,
+      createdAt: dateOffset(user.createdOffset),
+      emailVerified: true,
+      updatedAt: dateOffset(user.createdOffset),
+    }))
+  );
 
-  db.insert(accounts)
-    .values(
-      userSeeds.map((user) => ({
-        id: uuid(),
-        userId: user.id,
-        accountId: user.id,
-        providerId: "credential",
-        password: passwordHash,
-        createdAt: dateOffset(user.createdOffset),
-        updatedAt: dateOffset(user.createdOffset),
-      }))
-    )
-    .run();
+  await db.insert(accounts).values(
+    userSeeds.map((user) => ({
+      id: uuid(),
+      userId: user.id,
+      accountId: user.id,
+      providerId: "credential",
+      password: passwordHash,
+      createdAt: dateOffset(user.createdOffset),
+      updatedAt: dateOffset(user.createdOffset),
+    }))
+  );
 
   console.log(`  ✅ Users & accounts seeded (${userSeeds.length} users)`);
 
@@ -289,24 +289,22 @@ async function seed() {
     },
   ];
 
-  db.insert(villas)
-    .values(
-      villaSeeds.map((villa) => ({
-        id: villa.id,
-        name: villa.name,
-        slug: villa.slug,
-        description: villa.description,
-        pricePerNight: villa.pricePerNight,
-        maxGuests: villa.maxGuests,
-        bedrooms: villa.bedrooms,
-        bathrooms: villa.bathrooms,
-        amenities: villa.amenities,
-        imageUrls: villa.imageUrls,
-        status: villa.status,
-        createdAt: isoTimestamp(villa.createdOffset),
-      }))
-    )
-    .run();
+  await db.insert(villas).values(
+    villaSeeds.map((villa) => ({
+      id: villa.id,
+      name: villa.name,
+      slug: villa.slug,
+      description: villa.description,
+      pricePerNight: villa.pricePerNight,
+      maxGuests: villa.maxGuests,
+      bedrooms: villa.bedrooms,
+      bathrooms: villa.bathrooms,
+      amenities: villa.amenities,
+      imageUrls: villa.imageUrls,
+      status: villa.status,
+      createdAt: isoTimestamp(villa.createdOffset),
+    }))
+  );
 
   console.log(`  ✅ Villas seeded (${villaSeeds.length} villas)`);
 
@@ -523,12 +521,8 @@ async function seed() {
     };
   });
 
-  db.insert(bookings)
-    .values(bookingRecords.map((record) => record.booking))
-    .run();
-  db.insert(payments)
-    .values(bookingRecords.map((record) => record.payment))
-    .run();
+  await db.insert(bookings).values(bookingRecords.map((record) => record.booking));
+  await db.insert(payments).values(bookingRecords.map((record) => record.payment));
 
   console.log(`  ✅ Bookings seeded (${bookingRecords.length} bookings)`);
   console.log(`  ✅ Payments seeded (${bookingRecords.length} payments)`);
@@ -588,7 +582,7 @@ async function seed() {
     };
   });
 
-  db.insert(reviews).values(reviewRecords).run();
+  await db.insert(reviews).values(reviewRecords);
   console.log(`  ✅ Reviews seeded (${reviewRecords.length} reviews)`);
 
   console.log("\n🎉 Database seeded successfully!");

@@ -4,7 +4,7 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 function collectAllowedDevOrigins() {
-  const defaults = ["localhost", "127.0.0.1", "192.168.1.21", "192.168.1.4"];
+  const defaults = ["localhost", "127.0.0.1"];
   const fromEnv = (process.env.BETTER_AUTH_TRUSTED_ORIGINS || "")
     .split(",")
     .map((value) => value.trim())
@@ -22,6 +22,10 @@ function collectAllowedDevOrigins() {
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: collectAllowedDevOrigins(),
+  serverExternalPackages: ["better-sqlite3"],
+  outputFileTracingIncludes: {
+    "/**": ["./sqlite.db"],
+  },
   images: {
     remotePatterns: [
       {

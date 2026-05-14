@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { pgTable, text, integer, doublePrecision, timestamp, boolean, uniqueIndex } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 export const USER_ROLES = ["SUPER_ADMIN", "ADMIN", "GUEST"] as const;
@@ -16,40 +16,32 @@ export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 export const PAYMENT_STATUSES = ["UNPAID", "PAID", "REFUNDED"] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 
-export const users = sqliteTable("users", {
+export const users = pgTable("users", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash"),
-  role: text("role", { enum: USER_ROLES }).notNull().default("GUEST"),
+  role: text("role").notNull().default("GUEST"),
   avatarUrl: text("avatar_url"),
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-  emailVerified: integer("email_verified", { mode: "boolean" }).notNull().default(false),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
-    .notNull()
-    .$defaultFn(() => new Date()),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  emailVerified: boolean("email_verified").notNull().default(false),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const sessions = sqliteTable("sessions", {
+export const sessions = pgTable("sessions", {
   id: text("id").primaryKey(),
   userId: text("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   token: text("token").notNull().unique(),
-  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
-    .notNull()
-    .$defaultFn(() => new Date()),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const accounts = sqliteTable("accounts", {
+export const accounts = pgTable("accounts", {
   id: text("id").primaryKey(),
   userId: text("user_id")
     .notNull()
@@ -58,48 +50,40 @@ export const accounts = sqliteTable("accounts", {
   providerId: text("provider_id").notNull(),
   accessToken: text("access_token"),
   refreshToken: text("refresh_token"),
-  accessTokenExpiresAt: integer("access_token_expires_at", { mode: "timestamp" }),
-  refreshTokenExpiresAt: integer("refresh_token_expires_at", { mode: "timestamp" }),
+  accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
+  refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true }),
   scope: text("scope"),
   idToken: text("id_token"),
   password: text("password"),
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
-    .notNull()
-    .$defaultFn(() => new Date()),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const verifications = sqliteTable("verifications", {
+export const verifications = pgTable("verifications", {
   id: text("id").primaryKey(),
   identifier: text("identifier").notNull(),
   value: text("value").notNull(),
-  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .$defaultFn(() => new Date()),
-  updatedAt: text("updated_at")
-    .$defaultFn(() => new Date().toISOString()),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
-export const villas = sqliteTable("villas", {
+export const villas = pgTable("villas", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
   description: text("description").notNull(),
-  pricePerNight: real("price_per_night").notNull(),
+  pricePerNight: doublePrecision("price_per_night").notNull(),
   maxGuests: integer("max_guests").notNull(),
   bedrooms: integer("bedrooms").notNull(),
   bathrooms: integer("bathrooms").notNull(),
-  amenities: text("amenities", { mode: "json" }).notNull().$type<string[]>(),
-  imageUrls: text("image_urls", { mode: "json" }).notNull().$type<string[]>(),
-  status: text("status", { enum: VILLA_STATUSES }).notNull().default("AVAILABLE"),
-  createdAt: text("created_at")
-    .notNull()
-    .$defaultFn(() => new Date().toISOString()),
+  amenities: text("amenities").array().notNull(),
+  imageUrls: text("image_urls").array().notNull(),
+  status: text("status").notNull().default("AVAILABLE"),
+  createdAt: text("created_at").notNull().$defaultFn(() => new Date().toISOString()),
 });
 
-export const bookings = sqliteTable("bookings", {
+export const bookings = pgTable("bookings", {
   id: text("id").primaryKey(),
   villaId: text("villa_id")
     .notNull()
@@ -110,26 +94,24 @@ export const bookings = sqliteTable("bookings", {
   checkInDate: text("check_in_date").notNull(),
   checkOutDate: text("check_out_date").notNull(),
   guestCount: integer("guest_count").notNull(),
-  totalAmount: real("total_amount").notNull(),
-  status: text("status", { enum: BOOKING_STATUSES }).notNull().default("PENDING"),
-  createdAt: text("created_at")
-    .notNull()
-    .$defaultFn(() => new Date().toISOString()),
+  totalAmount: doublePrecision("total_amount").notNull(),
+  status: text("status").notNull().default("PENDING"),
+  createdAt: text("created_at").notNull().$defaultFn(() => new Date().toISOString()),
 });
 
-export const payments = sqliteTable("payments", {
+export const payments = pgTable("payments", {
   id: text("id").primaryKey(),
   bookingId: text("booking_id")
     .notNull()
     .references(() => bookings.id, { onDelete: "cascade" }),
-  amount: real("amount").notNull(),
-  paymentMethod: text("payment_method", { enum: PAYMENT_METHODS }).notNull(),
+  amount: doublePrecision("amount").notNull(),
+  paymentMethod: text("payment_method").notNull(),
   transactionId: text("transaction_id").notNull().unique(),
-  status: text("status", { enum: PAYMENT_STATUSES }).notNull().default("UNPAID"),
+  status: text("status").notNull().default("UNPAID"),
   processedAt: text("processed_at"),
 });
 
-export const reviews = sqliteTable(
+export const reviews = pgTable(
   "reviews",
   {
     id: text("id").primaryKey(),
@@ -141,13 +123,10 @@ export const reviews = sqliteTable(
       .references(() => users.id, { onDelete: "cascade" }),
     rating: integer("rating").notNull(),
     comment: text("comment").notNull(),
-    createdAt: text("created_at")
-      .notNull()
-      .$defaultFn(() => new Date().toISOString()),
+    createdAt: text("created_at").notNull().$defaultFn(() => new Date().toISOString()),
   },
   (table) => [uniqueIndex("reviews_villa_guest_unique").on(table.villaId, table.guestId)]
 );
-
 
 export const usersRelations = relations(users, ({ many }) => ({
   bookings: many(bookings),

@@ -5,8 +5,7 @@ const getPakasirConfigMock = vi.fn();
 const buildPakasirRedirectUrlMock = vi.fn();
 const revalidateLocalizedPathsMock = vi.fn();
 const transactionMock = vi.fn();
-const insertRunMock = vi.fn();
-const insertValuesMock = vi.fn(() => ({ run: insertRunMock }));
+const insertValuesMock = vi.fn(() => Promise.resolve());
 const insertMock = vi.fn(() => ({ values: insertValuesMock }));
 
 vi.mock("@/db", () => ({
@@ -36,7 +35,7 @@ vi.mock("uuid", () => ({
     .mockReturnValue("generated-id"),
 }));
 
-import { createBooking } from "./booking";
+import { createBooking } from "@/actions/booking";
 
 describe("createBooking", () => {
   beforeEach(() => {
@@ -59,32 +58,31 @@ describe("createBooking", () => {
   });
 
   it("creates a booking inside an immediate transaction and revalidates on success", async () => {
-    const getMock = vi
+    const selectResultMock = vi
       .fn()
-      .mockReturnValueOnce({
-        id: "villa-1",
-        slug: "villa-sunset",
-        pricePerNight: 350,
-        maxGuests: 4,
-        status: "AVAILABLE",
-      })
-      .mockReturnValueOnce(undefined);
+      .mockResolvedValueOnce([
+        {
+          id: "villa-1",
+          slug: "villa-sunset",
+          pricePerNight: 350,
+          maxGuests: 4,
+          status: "AVAILABLE",
+        },
+      ])
+      .mockResolvedValueOnce([]);
 
     const selectMock = vi.fn(() => ({
       from: () => ({
-        where: () => ({
-          get: getMock,
-        }),
+        where: selectResultMock,
       }),
     }));
 
-    transactionMock.mockImplementation((callback, options) => {
+    transactionMock.mockImplementation((callback) => {
       const tx = {
         select: selectMock,
         insert: insertMock,
       };
 
-      expect(options).toEqual({ behavior: "immediate" });
       return callback(tx);
     });
 
@@ -139,24 +137,24 @@ describe("createBooking", () => {
   });
 
   it("returns a date conflict error and skips inserts when overlap exists", async () => {
-    const getMock = vi
+    const selectResultMock = vi
       .fn()
-      .mockReturnValueOnce({
-        id: "villa-1",
-        slug: "villa-sunset",
-        pricePerNight: 350,
-        maxGuests: 4,
-        status: "AVAILABLE",
-      })
-      .mockReturnValueOnce({ id: "existing-booking" });
+      .mockResolvedValueOnce([
+        {
+          id: "villa-1",
+          slug: "villa-sunset",
+          pricePerNight: 350,
+          maxGuests: 4,
+          status: "AVAILABLE",
+        },
+      ])
+      .mockResolvedValueOnce([{ id: "existing-booking" }]);
 
     transactionMock.mockImplementation((callback) =>
       callback({
         select: () => ({
           from: () => ({
-            where: () => ({
-              get: getMock,
-            }),
+            where: selectResultMock,
           }),
         }),
         insert: insertMock,

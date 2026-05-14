@@ -5,7 +5,7 @@ import {
   buildRevenueChartData,
   getMonthDateRange,
   normalizeAnalyticsPeriod,
-} from "./admin-analytics";
+} from "@/lib/admin-analytics";
 
 describe("admin analytics helpers", () => {
   it("normalizes invalid period values to current month and year", () => {

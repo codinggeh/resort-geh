@@ -10,5 +10,10 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
+    env: {
+      DEMO_MODE: "0",
+      NEXT_PUBLIC_DEMO_MODE: "0",
+    },
   },
 });
+

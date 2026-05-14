@@ -12,6 +12,7 @@ import {
   ArrowUpRight,
   ChevronsUpDown,
   Languages,
+  Lock,
   Monitor,
   Moon,
   Sun,
@@ -21,6 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import { signOut } from "@/lib/auth-client";
 import { ThemeSetting } from "@/lib/constants/theme";
 import { cn } from "@/lib/utils";
+import { isPublicDemoModeEnabled } from "@/lib/demo-mode";
 import { useTheme } from "@/components/providers/theme-provider";
 import {
   DropdownMenu,
@@ -54,6 +56,8 @@ export function AdminSidebar({
   const searchParams = useSearchParams();
   const t = useTranslations("admin");
   const tc = useTranslations("common");
+  const td = useTranslations("demo");
+  const demoEnabled = isPublicDemoModeEnabled();
   const { setTheme, resolvedTheme, theme } = useTheme();
   const roleLabel =
     userRole === "SUPER_ADMIN"
@@ -111,7 +115,6 @@ export function AdminSidebar({
 
   return (
     <aside className="hidden md:flex w-64 flex-col border-r bg-card">
-      {/* Logo */}
       <div className="p-6">
         <Link
           href="/admin"
@@ -123,11 +126,16 @@ export function AdminSidebar({
         <p className="text-xs text-muted-foreground mt-1">
           {t("adminPanel")} — {roleLabel}
         </p>
+        {demoEnabled && (
+          <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-amber-700 dark:text-amber-300">
+            <Lock className="h-3 w-3" />
+            {td("readOnly")}
+          </div>
+        )}
       </div>
 
       <Separator />
 
-      {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1">
         {links
           .filter((link) => link.roles.includes(userRole))
@@ -155,7 +163,6 @@ export function AdminSidebar({
 
       <Separator />
 
-      {/* Footer area */}
       <div className="p-4">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

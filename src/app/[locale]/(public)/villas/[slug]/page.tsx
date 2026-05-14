@@ -53,7 +53,7 @@ export default async function VillaDetailPage({ params }: Props) {
   const villaReviews = await db.query.reviews.findMany({
     where: eq(reviews.villaId, villa.id),
     with: { guest: true },
-    orderBy: (reviews, { desc }) => [desc(reviews.createdAt)],
+    orderBy: (reviews: any, { desc }: any) => [desc(reviews.createdAt)],
   });
 
   const bookedDates = await getBookedDates(villa.id);
@@ -61,7 +61,7 @@ export default async function VillaDetailPage({ params }: Props) {
   return (
     <VillaDetailClient
       villa={villa}
-      reviews={villaReviews.map((r) => ({
+      reviews={villaReviews.map((r: any) => ({
         ...r,
         guestName: r.guest.name,
         guestAvatar: r.guest.avatarUrl,

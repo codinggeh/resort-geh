@@ -10,19 +10,22 @@ import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { mapAuthProviderError, mapAuthValidationMessage } from "@/lib/auth-form";
 import { getSafeNextPath } from "@/lib/safe-next-path";
+import { isPublicDemoModeEnabled } from "@/lib/demo-mode";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Hotel, Loader2, ArrowRight } from "lucide-react";
+import { Hotel, Loader2, ArrowRight, Lock } from "lucide-react";
 import { toast } from "sonner";
 
 export default function RegisterPage() {
   const t = useTranslations("auth");
+  const td = useTranslations("demo");
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const nextPath = getSafeNextPath(searchParams.get("next"));
+  const demoEnabled = isPublicDemoModeEnabled();
 
   const {
     register,
@@ -33,6 +36,11 @@ export default function RegisterPage() {
   });
 
   async function onSubmit(data: RegisterFormData) {
+    if (demoEnabled) {
+      toast.error(td("readOnlyToast"));
+      return;
+    }
+
     setLoading(true);
     try {
       const result = await signUp.email({
@@ -42,7 +50,7 @@ export default function RegisterPage() {
       });
 
       if (result.error) {
-        toast.error(mapAuthProviderError(result.error.message, t) || t("registerFailed"));
+        toast.error(mapAuthProviderError(result.error, t) || t("registerFailed"));
       } else {
         toast.success(t("registerSuccess"));
         router.push(nextPath);
@@ -70,6 +78,17 @@ export default function RegisterPage() {
               <CardDescription>{t("registerDescription")}</CardDescription>
             </CardHeader>
             <CardContent>
+              {demoEnabled && (
+                <div className="mb-5 flex items-start gap-3 rounded-[1.2rem] border border-amber-500/40 bg-amber-500/8 px-4 py-3 text-left">
+                  <Lock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-300" />
+                  <p className="text-xs leading-5 text-amber-900 dark:text-amber-100">
+                    {td("readOnly")} —{" "}
+                    <Link href="/login" className="font-semibold underline">
+                      {t("login")}
+                    </Link>
+                  </p>
+                </div>
+              )}
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">{t("name")}</Label>
@@ -125,7 +144,7 @@ export default function RegisterPage() {
                     </p>
                   )}
                 </div>
-                <Button type="submit" className="h-12 w-full rounded-full" disabled={loading}>
+                <Button type="submit" className="h-12 w-full rounded-full" disabled={loading || demoEnabled}>
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {t("register")}
                 </Button>

@@ -35,6 +35,7 @@ import {
 import { MoreHorizontal, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatLongDate } from "@/lib/formatters";
+import { isDemoReadOnlyError } from "@/lib/demo-mode-errors";
 
 interface User {
   id: string;
@@ -54,6 +55,7 @@ const roleColors: Record<string, string> = {
 export function UsersClient({ users }: { users: User[] }) {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
+  const td = useTranslations("demo");
   const locale = useLocale();
   const router = useRouter();
   const [page, setPage] = useState(1);
@@ -83,6 +85,11 @@ export function UsersClient({ users }: { users: User[] }) {
       const result = await promoteUserToAdmin(userId);
 
       if ("error" in result && result.error) {
+        if (isDemoReadOnlyError(result.error)) {
+          toast.error(td("readOnlyToast"));
+          return;
+        }
+
         toast.error(t("promoteFailed"));
         return;
       }
@@ -105,6 +112,11 @@ export function UsersClient({ users }: { users: User[] }) {
       const result = await deleteUser(deleteTargetId);
 
       if ("error" in result && result.error) {
+        if (isDemoReadOnlyError(result.error)) {
+          toast.error(td("readOnlyToast"));
+          return;
+        }
+
         toast.error(t("deleteUserFailed"));
         return;
       }

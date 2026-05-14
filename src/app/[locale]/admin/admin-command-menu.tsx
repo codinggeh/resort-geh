@@ -29,7 +29,6 @@ export function AdminCommandMenu() {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
 
-  // Derived results: only show when query is long enough
   const displayResults = useMemo(
     () => (query.length < 2 ? { bookings: [], users: [] } : results),
     [query, results]
@@ -44,7 +43,6 @@ export function AdminCommandMenu() {
     }
   }
 
-  // Cmd+K shortcut
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -56,7 +54,6 @@ export function AdminCommandMenu() {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  // Debounced search
   useEffect(() => {
     if (query.length < 2) return;
 
@@ -69,7 +66,7 @@ export function AdminCommandMenu() {
           setResults(data as typeof results);
         }
       } catch {
-        // silently fail
+        // Swallow transient search errors; the UI simply shows no results.
       }
     }, 300);
 

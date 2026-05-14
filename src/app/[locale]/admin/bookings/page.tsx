@@ -15,8 +15,7 @@ export default async function AdminBookingsPage() {
   const t = await getTranslations("admin");
   const rawBookings = await getAllBookingsAdmin();
 
-  // Serialize data for client component
-  const bookings = rawBookings.map((b) => ({
+  const bookings = rawBookings.map((b: any) => ({
     id: b.id,
     checkInDate: b.checkInDate,
     checkOutDate: b.checkOutDate,

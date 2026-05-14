@@ -15,8 +15,7 @@ export default async function AdminVillasPage() {
   const t = await getTranslations("admin");
   const rawVillas = await getAllVillasAdmin();
 
-  // Serialize for client component
-  const villas = rawVillas.map((v) => ({
+  const villas = rawVillas.map((v: any) => ({
     id: v.id,
     name: v.name,
     slug: v.slug,

@@ -13,9 +13,12 @@ import { villaSchema } from "@/lib/validations";
 import { eq, and, gte, lte, sql, count } from "drizzle-orm";
 import { v4 as uuid } from "uuid";
 import { revalidateLocalizedPaths } from "@/lib/revalidate";
+import { isDemoModeEnabled } from "@/lib/demo-mode";
 
 const SITE_TIME_ZONE = "Asia/Jakarta";
 const BOOKING_HOLD_MINUTES = 30;
+const DEMO_FIELD_ERROR = { _form: ["DEMO_MODE_READ_ONLY"] } as const;
+const DEMO_MESSAGE_ERROR = "DEMO_MODE_READ_ONLY";
 
 function getSiteDateString() {
   const formatter = new Intl.DateTimeFormat("en", {
@@ -56,8 +59,6 @@ function buildBookingRevalidatePaths(slug?: string | null) {
   ];
 }
 
-// ─── Helper: Role check ───────────────────────────────────────────────────────
-
 async function requireAdmin() {
   const session = await getAuthSession();
   if (!session) throw new Error("Unauthorized");
@@ -76,7 +77,25 @@ async function requireSuperAdmin() {
   return session;
 }
 
-// ─── Villa CRUD ────────────────────────────────────────────────────────────────
+async function requireAdminWriteAccess() {
+  const session = await requireAdmin();
+
+  if (isDemoModeEnabled()) {
+    return { session, demoBlocked: true as const };
+  }
+
+  return { session, demoBlocked: false as const };
+}
+
+async function requireSuperAdminWriteAccess() {
+  const session = await requireSuperAdmin();
+
+  if (isDemoModeEnabled()) {
+    return { session, demoBlocked: true as const };
+  }
+
+  return { session, demoBlocked: false as const };
+}
 
 export async function createVilla(formData: {
   name: string;
@@ -90,7 +109,8 @@ export async function createVilla(formData: {
   imageUrls: string[];
   status: "AVAILABLE" | "MAINTENANCE" | "HIDDEN";
 }) {
-  await requireAdmin();
+  const { demoBlocked } = await requireAdminWriteAccess();
+  if (demoBlocked) return { error: DEMO_FIELD_ERROR };
 
   const parsed = villaSchema.safeParse(formData);
   if (!parsed.success) {
@@ -102,12 +122,10 @@ export async function createVilla(formData: {
   });
   if (existing) return { error: { slug: ["Slug already in use"] } };
 
-  db.insert(villas)
-    .values({
-      id: uuid(),
-      ...parsed.data,
-    })
-    .run();
+  await db.insert(villas).values({
+    id: uuid(),
+    ...parsed.data,
+  });
 
   revalidateLocalizedPaths(buildVillaRevalidatePaths([parsed.data.slug]));
   return { success: true };
@@ -128,7 +146,8 @@ export async function updateVilla(
     status: "AVAILABLE" | "MAINTENANCE" | "HIDDEN";
   }
 ) {
-  await requireAdmin();
+  const { demoBlocked } = await requireAdminWriteAccess();
+  if (demoBlocked) return { error: DEMO_FIELD_ERROR };
 
   const currentVilla = await db.query.villas.findFirst({
     where: eq(villas.id, villaId),
@@ -154,10 +173,7 @@ export async function updateVilla(
     return { error: { slug: ["Slug already in use"] } };
   }
 
-  db.update(villas)
-    .set(parsed.data)
-    .where(eq(villas.id, villaId))
-    .run();
+  await db.update(villas).set(parsed.data).where(eq(villas.id, villaId));
 
   revalidateLocalizedPaths(
     buildVillaRevalidatePaths([currentVilla.slug, parsed.data.slug])
@@ -166,7 +182,8 @@ export async function updateVilla(
 }
 
 export async function deleteVilla(villaId: string) {
-  await requireSuperAdmin();
+  const { demoBlocked } = await requireSuperAdminWriteAccess();
+  if (demoBlocked) return { error: DEMO_MESSAGE_ERROR };
 
   const villa = await db.query.villas.findFirst({
     where: eq(villas.id, villaId),
@@ -195,19 +212,18 @@ export async function deleteVilla(villaId: string) {
     return { error: "Cannot delete a villa with booking or review history" };
   }
 
-  db.delete(villas).where(eq(villas.id, villaId)).run();
+  await db.delete(villas).where(eq(villas.id, villaId));
 
   revalidateLocalizedPaths(buildVillaRevalidatePaths([villa.slug]));
   return { success: true };
 }
 
-// ─── Booking Management ────────────────────────────────────────────────────────
-
 export async function updateBookingStatus(
   bookingId: string,
   status: "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED"
 ) {
-  await requireAdmin();
+  const { demoBlocked } = await requireAdminWriteAccess();
+  if (demoBlocked) return { error: DEMO_MESSAGE_ERROR };
 
   const booking = await db.query.bookings.findFirst({
     where: eq(bookings.id, bookingId),
@@ -245,17 +261,15 @@ export async function updateBookingStatus(
     return { error: "Only confirmed bookings can be completed" };
   }
 
-  db.update(bookings)
-    .set({ status })
-    .where(eq(bookings.id, bookingId))
-    .run();
+  await db.update(bookings).set({ status }).where(eq(bookings.id, bookingId));
 
   revalidateLocalizedPaths(buildBookingRevalidatePaths(booking.villa?.slug));
   return { success: true };
 }
 
 export async function confirmPayment(bookingId: string) {
-  await requireAdmin();
+  const { demoBlocked } = await requireAdminWriteAccess();
+  if (demoBlocked) return { error: DEMO_MESSAGE_ERROR };
 
   const booking = await db.query.bookings.findFirst({
     where: eq(bookings.id, bookingId),
@@ -289,19 +303,17 @@ export async function confirmPayment(bookingId: string) {
     return { success: true };
   }
 
-  db.transaction((tx) => {
-    tx.update(payments)
+  await db.transaction(async (tx: any) => {
+    await tx.update(payments)
       .set({
         status: "PAID",
         processedAt: booking.payment?.processedAt || new Date().toISOString(),
       })
-      .where(eq(payments.bookingId, bookingId))
-      .run();
+      .where(eq(payments.bookingId, bookingId));
 
-    tx.update(bookings)
+    await tx.update(bookings)
       .set({ status: "CONFIRMED" })
-      .where(eq(bookings.id, bookingId))
-      .run();
+      .where(eq(bookings.id, bookingId));
   });
 
   revalidateLocalizedPaths(buildBookingRevalidatePaths(booking.villa?.slug));
@@ -309,7 +321,8 @@ export async function confirmPayment(bookingId: string) {
 }
 
 export async function cancelBooking(bookingId: string) {
-  await requireAdmin();
+  const { demoBlocked } = await requireAdminWriteAccess();
+  if (demoBlocked) return { error: DEMO_MESSAGE_ERROR };
 
   const booking = await db.query.bookings.findFirst({
     where: eq(bookings.id, bookingId),
@@ -335,19 +348,17 @@ export async function cancelBooking(bookingId: string) {
     return { success: true };
   }
 
-  db.transaction((tx) => {
-    tx.update(bookings)
+  await db.transaction(async (tx: any) => {
+    await tx.update(bookings)
       .set({ status: "CANCELLED" })
-      .where(eq(bookings.id, bookingId))
-      .run();
+      .where(eq(bookings.id, bookingId));
 
     if (booking.payment) {
-      tx.update(payments)
+      await tx.update(payments)
         .set({
           status: booking.payment.status === "PAID" ? "REFUNDED" : booking.payment.status,
         })
-        .where(eq(payments.bookingId, bookingId))
-        .run();
+        .where(eq(payments.bookingId, bookingId));
     }
   });
 
@@ -355,10 +366,9 @@ export async function cancelBooking(bookingId: string) {
   return { success: true };
 }
 
-// ─── User Management (Super Admin only) ────────────────────────────────────────
-
 export async function promoteUserToAdmin(userId: string) {
-  await requireSuperAdmin();
+  const { demoBlocked } = await requireSuperAdminWriteAccess();
+  if (demoBlocked) return { error: DEMO_MESSAGE_ERROR };
 
   const targetUser = await db.query.users.findFirst({
     where: eq(users.id, userId),
@@ -380,17 +390,15 @@ export async function promoteUserToAdmin(userId: string) {
     return { success: true };
   }
 
-  db.update(users)
-    .set({ role: "ADMIN" })
-    .where(eq(users.id, userId))
-    .run();
+  await db.update(users).set({ role: "ADMIN" }).where(eq(users.id, userId));
 
   revalidateLocalizedPaths(["/admin/users"]);
   return { success: true };
 }
 
 export async function deleteUser(userId: string) {
-  const session = await requireSuperAdmin();
+  const { session, demoBlocked } = await requireSuperAdminWriteAccess();
+  if (demoBlocked) return { error: DEMO_MESSAGE_ERROR };
 
   if (session.user.id === userId) {
     return { error: "You cannot delete your own account" };
@@ -424,24 +432,21 @@ export async function deleteUser(userId: string) {
   }
 
   if (targetUser.role === "SUPER_ADMIN") {
-    const superAdminCount = db
+    const [superAdminCount] = await db
       .select({ count: count() })
       .from(users)
-      .where(eq(users.role, "SUPER_ADMIN"))
-      .get();
+      .where(eq(users.role, "SUPER_ADMIN"));
 
     if ((superAdminCount?.count ?? 0) <= 1) {
       return { error: "Cannot delete the last super admin" };
     }
   }
 
-  db.delete(users).where(eq(users.id, userId)).run();
+  await db.delete(users).where(eq(users.id, userId));
 
   revalidateLocalizedPaths(["/admin/users"]);
   return { success: true };
 }
-
-// ─── Analytics (Admin) ─────────────────────────────────────────────────────────
 
 export async function getAdminAnalytics(input?: { month?: number; year?: number }) {
   await requireAdmin();
@@ -450,37 +455,30 @@ export async function getAdminAnalytics(input?: { month?: number; year?: number 
   const selectedPeriod = normalizeAnalyticsPeriod(input);
   const { startDate, endDate } = getMonthDateRange(selectedPeriod);
 
-  // Total revenue (from paid payments)
-  const revenueResult = db
+  const [revenueResult] = await db
     .select({ total: sql<number>`COALESCE(SUM(${payments.amount}), 0)` })
     .from(payments)
-    .where(eq(payments.status, "PAID"))
-    .get();
+    .where(eq(payments.status, "PAID"));
 
   const totalRevenue = revenueResult?.total ?? 0;
 
-  // Active bookings (CONFIRMED or PENDING)
-  const activeResult = db
+  const [activeResult] = await db
     .select({ count: count() })
     .from(bookings)
     .where(
       sql`${bookings.status} = 'CONFIRMED' OR (${bookings.status} = 'PENDING' AND ${bookings.createdAt} >= ${pendingHoldCutoff})`
-    )
-    .get();
+    );
 
   const activeBookings = activeResult?.count ?? 0;
 
-  // Total villas
-  const villasResult = db
+  const [villasResult] = await db
     .select({ count: count() })
     .from(villas)
-    .where(eq(villas.status, "AVAILABLE"))
-    .get();
+    .where(eq(villas.status, "AVAILABLE"));
 
   const totalVillas = villasResult?.count ?? 0;
 
-  // Occupancy rate (bookable villas occupied today, with checkout treated as exclusive)
-  const occupiedResult = db
+  const [occupiedResult] = await db
     .select({ count: sql<number>`COUNT(DISTINCT ${bookings.villaId})` })
     .from(bookings)
     .innerJoin(villas, eq(bookings.villaId, villas.id))
@@ -491,14 +489,12 @@ export async function getAdminAnalytics(input?: { month?: number; year?: number 
         lte(bookings.checkInDate, today),
         sql`${bookings.checkOutDate} > ${today}`
       )
-    )
-    .get();
+    );
 
   const occupiedVillas = occupiedResult?.count ?? 0;
   const occupancyRate = totalVillas > 0 ? Math.round((occupiedVillas / totalVillas) * 100) : 0;
 
-  // Revenue over selected month (daily breakdown)
-  const revenueByDay = db
+  const revenueByDay = await db
     .select({
       date: sql<string>`substr(${payments.processedAt}, 1, 10)`,
       total: sql<number>`COALESCE(SUM(${payments.amount}), 0)`,
@@ -512,22 +508,20 @@ export async function getAdminAnalytics(input?: { month?: number; year?: number 
       )
     )
     .groupBy(sql`substr(${payments.processedAt}, 1, 10)`)
-    .orderBy(sql`substr(${payments.processedAt}, 1, 10)`)
-    .all();
+    .orderBy(sql`substr(${payments.processedAt}, 1, 10)`);
 
-  const revenueYears = db
+  const revenueYears = await db
     .select({
       year: sql<number>`CAST(substr(${payments.processedAt}, 1, 4) AS INTEGER)`,
     })
     .from(payments)
     .where(and(eq(payments.status, "PAID"), sql`${payments.processedAt} IS NOT NULL`))
     .groupBy(sql`substr(${payments.processedAt}, 1, 4)`)
-    .orderBy(sql`CAST(substr(${payments.processedAt}, 1, 4) AS INTEGER) DESC`)
-    .all();
+    .orderBy(sql`CAST(substr(${payments.processedAt}, 1, 4) AS INTEGER) DESC`);
 
   const chartData = buildRevenueChartData(selectedPeriod, revenueByDay);
   const availableYears = buildAvailableRevenueYears(
-    revenueYears.map((row) => row.year),
+    revenueYears.map((row: { year: number }) => row.year),
     selectedPeriod.year
   );
 
@@ -543,8 +537,6 @@ export async function getAdminAnalytics(input?: { month?: number; year?: number 
   };
 }
 
-// ─── Data Fetchers ─────────────────────────────────────────────────────────────
-
 export async function getAllBookingsAdmin() {
   await requireAdmin();
 
@@ -554,7 +546,7 @@ export async function getAllBookingsAdmin() {
       guest: true,
       payment: true,
     },
-    orderBy: (bookings, { desc }) => [desc(bookings.createdAt)],
+    orderBy: (bookings: any, { desc }: any) => [desc(bookings.createdAt)],
   });
 }
 
@@ -562,7 +554,7 @@ export async function getAllUsersAdmin() {
   await requireSuperAdmin();
 
   return db.query.users.findMany({
-    orderBy: (users, { desc }) => [desc(users.createdAt)],
+    orderBy: (users: any, { desc }: any) => [desc(users.createdAt)],
   });
 }
 
@@ -570,7 +562,7 @@ export async function getAllVillasAdmin() {
   await requireAdmin();
 
   return db.query.villas.findMany({
-    orderBy: (villas, { desc }) => [desc(villas.createdAt)],
+    orderBy: (villas: any, { desc }: any) => [desc(villas.createdAt)],
   });
 }
 

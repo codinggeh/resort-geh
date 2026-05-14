@@ -7,6 +7,7 @@ import { bookingSchema } from "@/lib/validations";
 import { eq, and, lt, gt, ne, gte, or } from "drizzle-orm";
 import { v4 as uuid } from "uuid";
 import { revalidateLocalizedPaths } from "@/lib/revalidate";
+import { isDemoModeEnabled } from "@/lib/demo-mode";
 import {
   buildPakasirRedirectUrl,
   fetchPakasirTransactionDetail,
@@ -58,7 +59,10 @@ export async function createBooking(formData: {
   const session = await getAuthSession();
   if (!session) throw new Error("Unauthorized");
 
-  // Validate input
+  if (isDemoModeEnabled()) {
+    return { error: { paymentMethod: ["DEMO_MODE_READ_ONLY"] } };
+  }
+
   const parsed = bookingSchema.safeParse({
     villaId: formData.villaId,
     checkInDate: formData.checkInDate,
@@ -91,7 +95,6 @@ export async function createBooking(formData: {
 
   const pendingHoldCutoff = getPendingHoldCutoff();
 
-  // Calculate total
   const nights = Math.ceil(
     (new Date(checkOutDate).getTime() - new Date(checkInDate).getTime()) / (1000 * 60 * 60 * 24)
   );
@@ -106,9 +109,8 @@ export async function createBooking(formData: {
 
   const bookingId = uuid();
   const paymentId = uuid();
-  const transactionResult = db.transaction(
-    (tx) => {
-      const villa = tx
+  const transactionResult = await db.transaction(async (tx: any) => {
+      const [villa] = await tx
         .select({
           id: villas.id,
           slug: villas.slug,
@@ -117,8 +119,7 @@ export async function createBooking(formData: {
           status: villas.status,
         })
         .from(villas)
-        .where(eq(villas.id, villaId))
-        .get();
+        .where(eq(villas.id, villaId));
 
       if (!villa) {
         return { error: { villaId: ["Villa not found"] } };
@@ -134,7 +135,7 @@ export async function createBooking(formData: {
 
       const totalAmount = nights * villa.pricePerNight;
 
-      const overlapping = tx
+      const [overlapping] = await tx
         .select({ id: bookings.id })
         .from(bookings)
         .where(
@@ -145,8 +146,7 @@ export async function createBooking(formData: {
             lt(bookings.checkInDate, checkOutDate),
             gt(bookings.checkOutDate, checkInDate)
           )
-        )
-        .get();
+        );
 
       if (overlapping) {
         return {
@@ -171,34 +171,29 @@ export async function createBooking(formData: {
         };
       }
 
-      tx.insert(bookings)
-        .values({
-          id: bookingId,
-          villaId,
-          guestId: session.user.id,
-          checkInDate,
-          checkOutDate,
-          guestCount,
-          totalAmount,
-          status: "PENDING",
-        })
-        .run();
+      await tx.insert(bookings).values({
+        id: bookingId,
+        villaId,
+        guestId: session.user.id,
+        checkInDate,
+        checkOutDate,
+        guestCount,
+        totalAmount,
+        status: "PENDING",
+      });
 
-      tx.insert(payments)
-        .values({
-          id: paymentId,
-          bookingId,
-          amount: totalAmount,
-          paymentMethod,
-          transactionId: bookingId,
-          status: "UNPAID",
-          processedAt: null,
-        })
-        .run();
+      await tx.insert(payments).values({
+        id: paymentId,
+        bookingId,
+        amount: totalAmount,
+        paymentMethod,
+        transactionId: bookingId,
+        status: "UNPAID",
+        processedAt: null,
+      });
 
       return { success: true as const, paymentUrl: resolvedPaymentUrl, villaSlug: villa.slug };
     },
-    { behavior: "immediate" }
   );
 
   if ("error" in transactionResult && transactionResult.error) {
@@ -238,17 +233,17 @@ export async function getUserBookings() {
   const session = await getAuthSession();
   if (!session) throw new Error("Unauthorized");
 
-  const result = await db.query.bookings.findMany({
+  const result: any[] = await db.query.bookings.findMany({
     where: eq(bookings.guestId, session.user.id),
     with: {
       villa: true,
       payment: true,
     },
-    orderBy: (bookings, { desc }) => [desc(bookings.createdAt)],
+    orderBy: (bookings: any, { desc }: any) => [desc(bookings.createdAt)],
   });
 
   const pendingBookings = result.filter(
-    (booking) => booking.status === "PENDING" && booking.payment?.status === "UNPAID"
+    (booking: any) => booking.status === "PENDING" && booking.payment?.status === "UNPAID"
   );
 
   let didSync = false;
@@ -264,8 +259,8 @@ export async function getUserBookings() {
         continue;
       }
 
-      db.transaction((tx) => {
-        tx.update(payments)
+      await db.transaction(async (tx: any) => {
+        await tx.update(payments)
           .set({
             status: "PAID",
             processedAt:
@@ -273,18 +268,16 @@ export async function getUserBookings() {
             paymentMethod: mapProviderMethod(detail.transaction?.payment_method),
             transactionId: booking.id,
           })
-          .where(and(eq(payments.bookingId, booking.id), eq(payments.status, "UNPAID")))
-          .run();
+          .where(and(eq(payments.bookingId, booking.id), eq(payments.status, "UNPAID")));
 
-        tx.update(bookings)
+        await tx.update(bookings)
           .set({ status: "CONFIRMED" })
-          .where(and(eq(bookings.id, booking.id), eq(bookings.status, "PENDING")))
-          .run();
+          .where(and(eq(bookings.id, booking.id), eq(bookings.status, "PENDING")));
       });
 
       didSync = true;
     } catch {
-      // Ignore reconciliation failures; webhook or later visits can retry safely.
+      // Reconciliation errors are transient; webhook or a later visit will retry.
     }
   }
 
@@ -296,7 +289,7 @@ export async function getUserBookings() {
     "/my-bookings",
     "/admin",
     "/admin/bookings",
-    ...result.flatMap((booking) => (booking.villa?.slug ? [`/villas/${booking.villa.slug}`] : [])),
+    ...result.flatMap((booking: any) => (booking.villa?.slug ? [`/villas/${booking.villa.slug}`] : [])),
   ]);
 
   return db.query.bookings.findMany({
@@ -305,6 +298,6 @@ export async function getUserBookings() {
       villa: true,
       payment: true,
     },
-    orderBy: (bookings, { desc }) => [desc(bookings.createdAt)],
+    orderBy: (bookings: any, { desc }: any) => [desc(bookings.createdAt)],
   });
 }

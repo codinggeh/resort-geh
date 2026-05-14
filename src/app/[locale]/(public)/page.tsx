@@ -25,18 +25,17 @@ export default async function HomePage() {
 
   const featuredVillas = await db.query.villas.findMany({
     where: eq(villas.status, "AVAILABLE"),
-    orderBy: (villas, { desc }) => [desc(villas.createdAt)],
+    orderBy: (villas: any, { desc }: any) => [desc(villas.createdAt)],
     limit: 3,
   });
 
-  const availableVillaStats = await db
+  const [availableVillaStats] = await db
     .select({
       count: count(),
       nightlyFrom: sql<number | null>`MIN(${villas.pricePerNight})`,
     })
     .from(villas)
-    .where(eq(villas.status, "AVAILABLE"))
-    .get();
+    .where(eq(villas.status, "AVAILABLE"));
 
   const ratingsData = await db
     .select({
@@ -47,16 +46,16 @@ export default async function HomePage() {
     .from(reviews)
     .groupBy(reviews.villaId);
 
-  const ratingsMap = new Map(
-    ratingsData.map((r) => [
+  const ratingsMap = new Map<string, { avg: number; count: number }>(
+    ratingsData.map((r: any) => [
       r.villaId,
       { avg: Number(r.avgRating) || 0, count: r.reviewCount },
     ])
   );
-  const totalReviewCount = ratingsData.reduce((sum, rating) => sum + rating.reviewCount, 0);
+  const totalReviewCount = ratingsData.reduce((sum: number, rating: any) => sum + rating.reviewCount, 0);
   const availableVillaCount = availableVillaStats?.count ?? 0;
   const nightlyFrom = availableVillaStats?.nightlyFrom ?? 0;
-  const bookingTotals = await db.select({ count: count() }).from(bookings).get();
+  const [bookingTotals] = await db.select({ count: count() }).from(bookings);
 
   const features = [
     { icon: Shield, titleKey: "featureSecureTitle" as const, descKey: "featureSecureDesc" as const },
@@ -121,7 +120,7 @@ export default async function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {featuredVillas.map((villa) => {
+            {featuredVillas.map((villa: any) => {
               const rating = ratingsMap.get(villa.id);
               return (
                 <VillaCard

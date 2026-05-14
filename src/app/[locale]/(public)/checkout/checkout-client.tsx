@@ -24,6 +24,10 @@ import {
   CalendarRange,
   UserRound,
   ShieldCheck,
+  CheckCircle2,
+  Clipboard,
+  ClipboardCheck,
+  CalendarPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
@@ -34,6 +38,8 @@ import {
   formatLongDate,
 } from "@/lib/formatters";
 import { getSafeImageGallery } from "@/lib/image";
+import { isDemoReadOnlyError } from "@/lib/demo-mode-errors";
+import { downloadBookingIcs } from "@/lib/booking-calendar";
 
 interface CheckoutClientProps {
   villa: {
@@ -59,6 +65,7 @@ export function CheckoutClient({
   const t = useTranslations("booking");
   const tv = useTranslations("villa");
   const tc = useTranslations("common");
+  const td = useTranslations("demo");
   const locale = useLocale();
   const { data: session } = useSession();
   const router = useRouter();
@@ -66,6 +73,11 @@ export function CheckoutClient({
   const [guestCount, setGuestCount] = useState(Math.min(2, villa.maxGuests));
   const [paymentMethod, setPaymentMethod] = useState<string>("CREDIT_CARD");
   const [loading, setLoading] = useState(false);
+  const [confirmation, setConfirmation] = useState<{
+    bookingId: string;
+    paymentUrl?: string;
+  } | null>(null);
+  const [referenceCopied, setReferenceCopied] = useState(false);
 
   const paymentMethods = [
     {
@@ -84,6 +96,7 @@ export function CheckoutClient({
     { num: 1, label: t("step1") },
     { num: 2, label: t("step2") },
     { num: 3, label: t("step3") },
+    { num: 4, label: t("step4") },
   ];
   const checkoutReturnPath = `/checkout?villaId=${encodeURIComponent(villa.id)}&checkIn=${encodeURIComponent(checkIn)}&checkOut=${encodeURIComponent(checkOut)}`;
   const loginHref = `/login?next=${encodeURIComponent(checkoutReturnPath)}`;
@@ -129,17 +142,21 @@ export function CheckoutClient({
       });
 
       if ("error" in result && result.error) {
-        const errors = Object.values(result.error).flat();
-        toast.error(mapBookingError(errors[0]));
-      } else if ("success" in result && result.success) {
-        const paymentUrl = (result as { success: boolean; bookingId: string; paymentUrl?: string }).paymentUrl;
-
-        if (paymentUrl) {
-          toast.success(t("redirectingToPayment"));
-          window.location.assign(paymentUrl);
+        if (isDemoReadOnlyError(result.error)) {
+          toast.error(td("readOnlyToast"));
           return;
         }
 
+        const errors = Object.values(result.error).flat();
+        toast.error(mapBookingError(errors[0] as string | undefined));
+      } else if ("success" in result && result.success) {
+        const successResult = result as { success: boolean; bookingId: string; paymentUrl?: string };
+
+        setConfirmation({
+          bookingId: successResult.bookingId,
+          paymentUrl: successResult.paymentUrl,
+        });
+        setStep(4);
         toast.success(t("bookingPending"));
       }
     } catch {
@@ -377,6 +394,144 @@ export function CheckoutClient({
                       >
                         {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {t("completeBooking")}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+
+            {step === 4 && confirmation && (
+              <motion.div
+                key="step4"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+              >
+                <Card className="overflow-hidden rounded-[2rem] border-border/70 bg-card/95 shadow-[0_24px_70px_-38px_rgba(45,35,24,0.4)]">
+                  <div className="border-b border-border/70 bg-primary/8 px-6 py-8 md:px-10 md:py-10">
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                        <CheckCircle2 className="h-6 w-6" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[0.68rem] uppercase tracking-[0.28em] text-primary">
+                          {t("step4")}
+                        </p>
+                        <h2 className="font-display mt-2 text-3xl tracking-[0.03em] text-foreground">
+                          {t("confirmationTitle")}
+                        </h2>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          {t("confirmationDescription")}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <CardContent className="space-y-6 p-6 md:p-10">
+                    <div className="rounded-[1.4rem] border border-border/60 bg-background/80 p-5">
+                      <p className="text-[0.68rem] uppercase tracking-[0.24em] text-muted-foreground">
+                        {t("bookingReference")}
+                      </p>
+                      <div className="mt-3 flex flex-wrap items-center gap-3">
+                        <code className="flex-1 break-all rounded-xl border border-border/60 bg-muted/30 px-3 py-2 font-mono text-sm text-foreground">
+                          {confirmation.bookingId}
+                        </code>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="rounded-full"
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(confirmation.bookingId);
+                              setReferenceCopied(true);
+                              toast.success(t("referenceCopied"));
+                              setTimeout(() => setReferenceCopied(false), 2000);
+                            } catch {
+                              toast.error(tc("error"));
+                            }
+                          }}
+                        >
+                          {referenceCopied ? (
+                            <ClipboardCheck className="mr-1.5 h-4 w-4" />
+                          ) : (
+                            <Clipboard className="mr-1.5 h-4 w-4" />
+                          )}
+                          {referenceCopied ? t("referenceCopiedShort") : t("copyReference")}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="rounded-[1.4rem] border border-border/60 bg-background/70 p-5">
+                        <p className="text-[0.68rem] uppercase tracking-[0.24em] text-muted-foreground">
+                          {t("summaryTitle")}
+                        </p>
+                        <p className="mt-3 font-display text-xl tracking-[0.03em] text-foreground">
+                          {villa.name}
+                        </p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {formatLocalDateRange(checkIn, checkOut, locale)}
+                        </p>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          {guestCount} {guestCount > 1 ? t("guestPlural") : t("guestSingular")}
+                        </p>
+                      </div>
+
+                      <div className="rounded-[1.4rem] border border-border/60 bg-background/70 p-5">
+                        <p className="text-[0.68rem] uppercase tracking-[0.24em] text-muted-foreground">
+                          {t("summaryTotalLabel")}
+                        </p>
+                        <p className="mt-3 font-display text-3xl tracking-[0.03em] text-foreground">
+                          {formatCurrency(totalPrice, locale)}
+                        </p>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          {tv("nightsCalculation", {
+                            nights,
+                            price: formatCurrency(villa.pricePerNight, locale),
+                          })}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-[1.4rem] border border-dashed border-amber-500/40 bg-amber-500/5 px-5 py-4 text-sm text-amber-900 dark:text-amber-100">
+                      {t("confirmationNote")}
+                    </div>
+
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                      {confirmation.paymentUrl && (
+                        <Button
+                          asChild
+                          className="flex-1 rounded-full"
+                        >
+                          <a href={confirmation.paymentUrl}>{t("payNow")}</a>
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-full"
+                        onClick={() => {
+                          downloadBookingIcs({
+                            bookingId: confirmation.bookingId,
+                            villaName: villa.name,
+                            checkIn,
+                            checkOut,
+                            guestCount,
+                            siteUrl:
+                              typeof window !== "undefined"
+                                ? `${window.location.origin}/my-bookings`
+                                : undefined,
+                          });
+                          toast.success(t("calendarDownloaded"));
+                        }}
+                      >
+                        <CalendarPlus className="mr-1.5 h-4 w-4" />
+                        {t("addToCalendar")}
+                      </Button>
+                      <Button asChild variant="outline" className="rounded-full">
+                        <Link href="/my-bookings">{t("viewMyBookings")}</Link>
                       </Button>
                     </div>
                   </CardContent>

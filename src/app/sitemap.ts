@@ -16,7 +16,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       slug: true,
       createdAt: true,
     },
-    orderBy: (table, { desc }) => [desc(table.createdAt)],
+    orderBy: (table: any, { desc }: any) => [desc(table.createdAt)],
   });
 
   const staticEntries = locales.flatMap((locale) =>
@@ -29,7 +29,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   );
 
   const villaEntries = locales.flatMap((locale) =>
-    villaPages.map((villa) => ({
+    villaPages.map((villa: any) => ({
       url: `${SITE_URL}${localizePath(`/villas/${villa.slug}`, locale)}`,
       lastModified: villa.createdAt ? new Date(villa.createdAt) : now,
       changeFrequency: "weekly" as const,

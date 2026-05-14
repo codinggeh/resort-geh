@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { bookings, payments, villas } from "@/db/schema";
 import { fetchPakasirTransactionDetail, getPakasirConfig } from "@/lib/pakasir";
 import { revalidateLocalizedPaths } from "@/lib/revalidate";
+import { isDemoModeEnabled } from "@/lib/demo-mode";
 
 type PakasirWebhookBody = {
   amount?: number;
@@ -27,6 +28,13 @@ function mapProviderMethod(providerMethod?: string) {
 }
 
 export async function POST(request: Request) {
+  if (isDemoModeEnabled()) {
+    return NextResponse.json(
+      { error: "Demo mode is read-only" },
+      { status: 503 }
+    );
+  }
+
   const config = getPakasirConfig();
 
   if (!config) {
@@ -109,8 +117,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Booking already cancelled" }, { status: 409 });
   }
 
-  db.transaction((tx) => {
-    tx.update(payments)
+  await db.transaction(async (tx: any) => {
+    await tx.update(payments)
       .set({
         status: "PAID",
         processedAt:
@@ -118,13 +126,11 @@ export async function POST(request: Request) {
         paymentMethod: mapProviderMethod(detail.transaction?.payment_method),
         transactionId: orderId,
       })
-      .where(and(eq(payments.id, payment.id), eq(payments.bookingId, orderId)))
-      .run();
+      .where(and(eq(payments.id, payment.id), eq(payments.bookingId, orderId)));
 
-    tx.update(bookings)
+    await tx.update(bookings)
       .set({ status: "CONFIRMED" })
-      .where(eq(bookings.id, orderId))
-      .run();
+      .where(eq(bookings.id, orderId));
   });
 
   const villa = await db.query.villas.findFirst({

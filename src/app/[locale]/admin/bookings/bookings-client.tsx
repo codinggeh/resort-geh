@@ -34,6 +34,7 @@ import {
 import { MoreHorizontal, CheckCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { formatCurrency, formatLocalDateRange } from "@/lib/formatters";
+import { isDemoReadOnlyError } from "@/lib/demo-mode-errors";
 
 interface Booking {
   id: string;
@@ -66,6 +67,7 @@ const STATUS_OPTIONS = ["ALL", "PENDING", "CONFIRMED", "COMPLETED", "CANCELLED"]
 export function BookingsClient({ bookings }: { bookings: Booking[] }) {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
+  const td = useTranslations("demo");
   const locale = useLocale();
   const router = useRouter();
   const [filter, setFilter] = useState<(typeof STATUS_OPTIONS)[number]>("ALL");
@@ -123,6 +125,11 @@ export function BookingsClient({ bookings }: { bookings: Booking[] }) {
       const result = await confirmPayment(bookingId);
 
       if ("error" in result && result.error) {
+        if (isDemoReadOnlyError(result.error)) {
+          toast.error(td("readOnlyToast"));
+          return;
+        }
+
         toast.error(t("paymentConfirmFailed"));
         return;
       }
@@ -145,6 +152,11 @@ export function BookingsClient({ bookings }: { bookings: Booking[] }) {
       const result = await cancelBooking(cancelTargetId);
 
       if ("error" in result && result.error) {
+        if (isDemoReadOnlyError(result.error)) {
+          toast.error(td("readOnlyToast"));
+          return;
+        }
+
         toast.error(t("cancelBookingFailed"));
         return;
       }

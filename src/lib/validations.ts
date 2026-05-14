@@ -9,8 +9,6 @@ import { isAllowedVillaImageUrl } from "@/lib/image";
 
 const PUBLIC_BOOKING_PAYMENT_METHODS = ["CREDIT_CARD", "BANK_TRANSFER"] as const;
 
-// ─── Villa Schemas ─────────────────────────────────────────────────────────────
-
 export const villaSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   slug: z
@@ -36,8 +34,6 @@ export const villaSchema = z.object({
 
 export type VillaFormData = z.infer<typeof villaSchema>;
 
-// ─── Booking Schemas ───────────────────────────────────────────────────────────
-
 export const bookingSchema = z
   .object({
     villaId: z.string().min(1, "Villa is required"),
@@ -53,8 +49,6 @@ export const bookingSchema = z
 
 export type BookingFormData = z.infer<typeof bookingSchema>;
 
-// ─── Review Schema ─────────────────────────────────────────────────────────────
-
 export const reviewSchema = z.object({
   villaId: z.string().min(1),
   rating: z.number().int().min(1).max(5),
@@ -62,8 +56,6 @@ export const reviewSchema = z.object({
 });
 
 export type ReviewFormData = z.infer<typeof reviewSchema>;
-
-// ─── Auth Schemas ──────────────────────────────────────────────────────────────
 
 export const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -85,8 +77,6 @@ export const registerSchema = z
   });
 
 export type RegisterFormData = z.infer<typeof registerSchema>;
-
-// ─── Admin Schemas ─────────────────────────────────────────────────────────────
 
 export const updateBookingStatusSchema = z.object({
   bookingId: z.string().min(1),

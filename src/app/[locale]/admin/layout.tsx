@@ -2,6 +2,7 @@ import { getAuthSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 import { AdminSidebar } from "./admin-sidebar";
 import { AdminCommandMenu } from "./admin-command-menu";
+import { DemoBanner } from "@/components/demo-banner";
 import { localizePath } from "@/lib/revalidate";
 
 export default async function AdminLayout({
@@ -23,16 +24,19 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="flex h-screen">
-      <AdminSidebar
-        userRole={session.user.role as string}
-        userName={session.user.name}
-        userEmail={session.user.email}
-      />
-      <main className="flex-1 overflow-y-auto">
-        <div className="p-6 md:p-8">{children}</div>
-      </main>
-      <AdminCommandMenu />
+    <div className="flex h-screen flex-col">
+      <DemoBanner />
+      <div className="flex min-h-0 flex-1">
+        <AdminSidebar
+          userRole={session.user.role as string}
+          userName={session.user.name}
+          userEmail={session.user.email}
+        />
+        <main className="flex-1 overflow-y-auto">
+          <div className="p-6 md:p-8">{children}</div>
+        </main>
+        <AdminCommandMenu />
+      </div>
     </div>
   );
 }

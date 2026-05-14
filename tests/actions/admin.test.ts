@@ -1,11 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const findFirstMock = vi.fn();
-const insertRunMock = vi.fn();
-const insertValuesMock = vi.fn(() => ({ run: insertRunMock }));
+const insertValuesMock = vi.fn(() => Promise.resolve());
 const insertMock = vi.fn(() => ({ values: insertValuesMock }));
-const updateRunMock = vi.fn();
-const updateWhereMock = vi.fn(() => ({ run: updateRunMock }));
+const updateWhereMock = vi.fn(() => Promise.resolve());
 const updateSetMock = vi.fn(() => ({ where: updateWhereMock }));
 const updateMock = vi.fn(() => ({ set: updateSetMock }));
 const getAuthSessionMock = vi.fn();
@@ -73,7 +71,6 @@ describe("admin villa actions", () => {
       id: "generated-villa-id",
       ...validPayload,
     });
-    expect(insertRunMock).toHaveBeenCalled();
     expect(revalidateLocalizedPathsMock).toHaveBeenCalledWith([
       "/",
       "/villas",
@@ -122,7 +119,6 @@ describe("admin villa actions", () => {
     expect(updateMock).toHaveBeenCalled();
     expect(updateSetMock).toHaveBeenCalledWith(validPayload);
     expect(updateWhereMock).toHaveBeenCalled();
-    expect(updateRunMock).toHaveBeenCalled();
     expect(revalidateLocalizedPathsMock).toHaveBeenCalledWith([
       "/",
       "/villas",

@@ -3,7 +3,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DashboardClient } from "./dashboard-client";
+import { DashboardClient } from "@/app/[locale]/admin/dashboard-client";
 
 const replaceMock = vi.fn();
 const refreshMock = vi.fn();

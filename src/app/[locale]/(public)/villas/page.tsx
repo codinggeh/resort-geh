@@ -19,7 +19,7 @@ export default async function VillasPage() {
 
   const allVillas = await db.query.villas.findMany({
     where: eq(villas.status, "AVAILABLE"),
-    orderBy: (villas, { desc }) => [desc(villas.createdAt)],
+    orderBy: (villas: any, { desc }: any) => [desc(villas.createdAt)],
   });
 
   const ratingsData = await db
@@ -31,8 +31,8 @@ export default async function VillasPage() {
     .from(reviews)
     .groupBy(reviews.villaId);
 
-  const ratingsMap = new Map(
-    ratingsData.map((r) => [
+  const ratingsMap = new Map<string, { avg: number; count: number }>(
+    ratingsData.map((r: any) => [
       r.villaId,
       { avg: Number(r.avgRating) || 0, count: r.reviewCount },
     ])
@@ -51,7 +51,7 @@ export default async function VillasPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {allVillas.map((villa) => {
+          {allVillas.map((villa: any) => {
             const rating = ratingsMap.get(villa.id);
             return (
               <VillaCard

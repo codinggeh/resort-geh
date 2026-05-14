@@ -29,6 +29,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { isDemoReadOnlyError } from "@/lib/demo-mode-errors";
 
 type VillaStatus = "AVAILABLE" | "MAINTENANCE" | "HIDDEN";
 
@@ -78,6 +79,7 @@ function RequiredLabel({
 export function VillaForm({ mode, villa }: VillaFormProps) {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
+  const td = useTranslations("demo");
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -169,6 +171,11 @@ export function VillaForm({ mode, villa }: VillaFormProps) {
           : await createVilla(data as VillaFormData);
 
       if ("error" in result && result.error) {
+        if (isDemoReadOnlyError(result.error)) {
+          toast.error(td("readOnlyToast"));
+          return;
+        }
+
         const messages = Object.values(result.error).flat();
         toast.error(getErrorMessage(messages[0]) || t("operationFailed"));
         return;

@@ -141,6 +141,17 @@
     "step1": "Confirm Details",
     "step2": "Your Information",
     "step3": "Payment",
+    "step4": "Confirmation",
+    "confirmationTitle": "Booking received",
+    "confirmationDescription": "Save the reference below. You can track the payment status from My Bookings at any time.",
+    "confirmationNote": "Payment is still pending. Complete it via the Pakasir page to confirm this stay.",
+    "bookingReference": "Booking reference",
+    "copyReference": "Copy reference",
+    "referenceCopied": "Reference copied to clipboard",
+    "referenceCopiedShort": "Copied",
+    "payNow": "Pay now",
+    "addToCalendar": "Add to calendar",
+    "calendarDownloaded": "Calendar invite downloaded",
     "confirmDates": "Confirm Dates & Guests",
     "guestDetails": "Guest Details",
     "paymentMethod": "Payment Method",
@@ -361,6 +372,7 @@
   "common": {
     "loading": "Loading...",
     "error": "Something went wrong",
+    "readOnly": "Demo mode is read-only. Clone the project locally to try every action end to end.",
     "save": "Save",
     "cancel": "Cancel",
     "continue": "Continue",
@@ -396,5 +408,15 @@
     "developer": "Developer",
     "disclaimer": "Disclaimer",
     "projectBy": "Project by"
+  },
+  "demo": {
+    "banner": "Demo mode is on. Browsing is live, but every write action is disabled so the seeded data stays clean.",
+    "bannerCta": "Read the disclaimer",
+    "readOnly": "Demo mode is read-only",
+    "readOnlyToast": "This action is disabled in demo mode.",
+    "loginHintTitle": "Demo credentials",
+    "loginHintDescription": "Tap an account to autofill the form.",
+    "useAccount": "Use {role}",
+    "copied": "Credentials filled in"
   }
 }

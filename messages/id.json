@@ -140,8 +140,17 @@
     "title": "Selesaikan Pemesanan Anda",
     "step1": "Konfirmasi Detail",
     "step2": "Informasi Anda",
-    "step3": "Pembayaran",
-    "confirmDates": "Konfirmasi Tanggal & Tamu",
+    "step3": "Pembayaran",    "step4": "Konfirmasi",
+    "confirmationTitle": "Booking diterima",
+    "confirmationDescription": "Simpan nomor referensi di bawah. Status pembayaran bisa dipantau dari Booking Saya kapan saja.",
+    "confirmationNote": "Pembayaran masih menunggu. Selesaikan di halaman Pakasir untuk mengonfirmasi stay ini.",
+    "bookingReference": "Nomor referensi",
+    "copyReference": "Salin referensi",
+    "referenceCopied": "Nomor referensi tersalin",
+    "referenceCopiedShort": "Tersalin",
+    "payNow": "Bayar sekarang",
+    "addToCalendar": "Tambahkan ke kalender",
+    "calendarDownloaded": "Undangan kalender terunduh",    "confirmDates": "Konfirmasi Tanggal & Tamu",
     "guestDetails": "Detail Tamu",
     "paymentMethod": "Metode Pembayaran",
     "creditCard": "QRIS",
@@ -361,6 +370,7 @@
   "common": {
     "loading": "Memuat...",
     "error": "Terjadi kesalahan",
+    "readOnly": "Mode demo hanya bisa dibaca. Clone proyeknya secara lokal untuk mencoba semua aksi sampai tuntas.",
     "save": "Simpan",
     "cancel": "Batal",
     "continue": "Lanjutkan",
@@ -396,5 +406,15 @@
     "developer": "Pengembang",
     "disclaimer": "Disclaimer",
     "projectBy": "Proyek oleh"
+  },
+  "demo": {
+    "banner": "Mode demo aktif. Semua halaman bisa dijelajahi, tapi aksi yang mengubah data dimatikan agar data seed tetap bersih.",
+    "bannerCta": "Baca disclaimer",
+    "readOnly": "Mode demo hanya bisa dibaca",
+    "readOnlyToast": "Aksi ini dimatikan di mode demo.",
+    "loginHintTitle": "Akun demo",
+    "loginHintDescription": "Klik salah satu akun untuk mengisi form otomatis.",
+    "useAccount": "Pakai {role}",
+    "copied": "Kredensial terisi"
   }
 }

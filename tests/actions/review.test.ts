@@ -38,7 +38,7 @@ vi.mock("uuid", () => ({
   v4: () => "review-id-1",
 }));
 
-import { createReview } from "./review";
+import { createReview } from "@/actions/review";
 
 describe("createReview", () => {
   beforeEach(() => {

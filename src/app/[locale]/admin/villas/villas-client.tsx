@@ -34,6 +34,7 @@ import {
 import { Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/formatters";
+import { isDemoReadOnlyError } from "@/lib/demo-mode-errors";
 
 interface Villa {
   id: string;
@@ -59,6 +60,7 @@ const statusColors: Record<string, string> = {
 export function VillasClient({ villas }: { villas: Villa[] }) {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
+  const td = useTranslations("demo");
   const locale = useLocale();
   const router = useRouter();
   const [page, setPage] = useState(1);
@@ -94,6 +96,11 @@ export function VillasClient({ villas }: { villas: Villa[] }) {
       const result = await deleteVilla(deleteTargetId);
 
       if ("error" in result && result.error) {
+        if (isDemoReadOnlyError(result.error)) {
+          toast.error(td("readOnlyToast"));
+          return;
+        }
+
         toast.error(t("villaDeleteFailed"));
         return;
       }

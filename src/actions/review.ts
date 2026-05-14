@@ -7,6 +7,7 @@ import { reviewSchema } from "@/lib/validations";
 import { eq, and } from "drizzle-orm";
 import { v4 as uuid } from "uuid";
 import { revalidateLocalizedPaths } from "@/lib/revalidate";
+import { isDemoModeEnabled } from "@/lib/demo-mode";
 
 export async function createReview(formData: {
   villaId: string;
@@ -16,12 +17,15 @@ export async function createReview(formData: {
   const session = await getAuthSession();
   if (!session) throw new Error("Unauthorized");
 
+  if (isDemoModeEnabled()) {
+    return { error: { villaId: ["DEMO_MODE_READ_ONLY"] } };
+  }
+
   const parsed = reviewSchema.safeParse(formData);
   if (!parsed.success) {
     return { error: parsed.error.flatten().fieldErrors };
   }
 
-  // Check if user has a completed booking for this villa
   const completedBooking = await db.query.bookings.findFirst({
     where: and(
       eq(bookings.villaId, parsed.data.villaId),
@@ -38,7 +42,6 @@ export async function createReview(formData: {
     };
   }
 
-  // Check for existing review
   const existingReview = await db.query.reviews.findFirst({
     where: and(
       eq(reviews.villaId, parsed.data.villaId),
@@ -51,15 +54,13 @@ export async function createReview(formData: {
   }
 
   try {
-    db.insert(reviews)
-      .values({
-        id: uuid(),
-        villaId: parsed.data.villaId,
-        guestId: session.user.id,
-        rating: parsed.data.rating,
-        comment: parsed.data.comment,
-      })
-      .run();
+    await db.insert(reviews).values({
+      id: uuid(),
+      villaId: parsed.data.villaId,
+      guestId: session.user.id,
+      rating: parsed.data.rating,
+      comment: parsed.data.comment,
+    });
   } catch (error) {
     if (
       error instanceof Error &&

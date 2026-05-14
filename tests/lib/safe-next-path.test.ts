@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getSafeNextPath } from "./safe-next-path";
+import { getSafeNextPath } from "@/lib/safe-next-path";
 
 describe("getSafeNextPath", () => {
   it("returns the fallback for empty values", () => {

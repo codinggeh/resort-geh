@@ -2,22 +2,30 @@ import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/constants/site";
 import { locales } from "@/i18n/routing";
 import { localizePath } from "@/lib/revalidate";
-import { db } from "@/db";
-import { villas } from "@/db/schema";
-import { eq } from "drizzle-orm";
 
 const publicPaths = ["/", "/about", "/villas", "/disclaimer"];
 
+export const dynamic = "force-dynamic";
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
-  const villaPages = await db.query.villas.findMany({
-    where: eq(villas.status, "AVAILABLE"),
-    columns: {
-      slug: true,
-      createdAt: true,
-    },
-    orderBy: (table: any, { desc }: any) => [desc(table.createdAt)],
-  });
+
+  let villaPages: { slug: string; createdAt: Date | null }[] = [];
+  try {
+    const { db } = await import("@/db");
+    const { villas } = await import("@/db/schema");
+    const { eq } = await import("drizzle-orm");
+    villaPages = await db.query.villas.findMany({
+      where: eq(villas.status, "AVAILABLE"),
+      columns: {
+        slug: true,
+        createdAt: true,
+      },
+      orderBy: (table: any, { desc }: any) => [desc(table.createdAt)],
+    });
+  } catch {
+    // DB unavailable at build time — return static entries only
+  }
 
   const staticEntries = locales.flatMap((locale) =>
     publicPaths.map((path) => ({
